@@ -41,7 +41,7 @@ events {
 }
 
 http {
-  error_log /log info;
+  error_log /var/log/nginx/error.log info;
   # http://nginx.org/en/docs/http/ngx_http_core_module.html
   types_hash_max_size 2048;
   server_names_hash_max_size 512;
@@ -109,7 +109,7 @@ http {
   {{if $entry.Endpoints}}
   upstream {{$entry.ServiceName}} {
     {{range $endpoint := $entry.Endpoints}}
-    server {{$endpoint}}:3000;
+    server {{$endpoint}}:{{$entry.ServicePort}};
     {{end}}
     sticky;
   }
@@ -117,7 +117,6 @@ http {
   server {
     listen 443 ssl;
     server_name {{$entry.Host}};
-    access_log /log combined;
     location {{$entry.Path}} {
       proxy_set_header X-Forwarded-For $remote_addr; # preserve client IP
       proxy_set_header Host $http_host;
@@ -148,8 +147,8 @@ func shellOut(cmd string) {
 }
 
 type TmplData struct {
-	Path, Host, ServiceName string
-	Endpoints               []string
+	Path, Host, ServiceName, ServicePort string
+	Endpoints                            []string
 }
 
 func main() {
@@ -242,6 +241,7 @@ func main() {
 						Host:        rule.Host,
 						Path:        path.Path,
 						ServiceName: path.Backend.ServiceName,
+						ServicePort: path.Backend.ServicePort.String(),
 						Endpoints:   endpointMap[path.Backend.ServiceName],
 					})
 				}
