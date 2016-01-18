@@ -23,10 +23,10 @@ You'll want to do something like this in order to get a service account token an
 mkdir serviceaccount
 kubectl exec some-running-pod cat /var/run/secrets/kubernetes.io/serviceaccount/token > serviceaccount/token
 kubectl exec some-running-pod cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt > serviceaccount/ca.crt
-docker run --rm -it \
-  -v $(pwd)/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount \
-  -v $(pwd)/ssl:/ssl \
-  -e KUBERNETES_SERVICE_HOST=kubernetes-master.example.com \
-  -e KUBERNETES_SERVICE_PORT=443 \
-  docker.io/csats/csats-balancer
+docker run --rm --name nginx-dev \
+    -v $(pwd)/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount \
+    -v $(pwd)/ssl:/ssl \
+    -e KUBERNETES_SERVICE_HOST=mission-control.dandiprat.industries \
+    -e KUBERNETES_SERVICE_PORT=443 -p 80:80 \
+    docker.io/csats/csats-balancer
 ```

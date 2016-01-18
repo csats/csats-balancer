@@ -13,8 +13,12 @@ spec:
       labels:
         app: csats-balancer
     spec:
+      volumes:
+        - name: ssl
+          secret:
+            secretName: letsencrypt-ssl
       containers:
-      - image: docker.io/csats/csats-balancer:0.1
+      - image: docker.io/csats/csats-balancer
         imagePullPolicy: Always
         name: csats-balancer
         ports:
@@ -22,3 +26,7 @@ spec:
           hostPort: 80
         - containerPort: 443
           hostPort: 443
+        volumeMounts:
+          - name: ssl
+            mountPath: /ssl
+            readOnly: true

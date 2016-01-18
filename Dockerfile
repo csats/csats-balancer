@@ -21,4 +21,4 @@ RUN apt-get update && apt-get install -y libssl1.0.0 curl ca-certificates && rm 
 RUN mkdir -p /var/log/nginx && mkdir -p /var/cache/nginx
 COPY controller/controller /
 COPY entrypoint.sh /entrypoint.sh
-CMD ["/controller"]
+CMD ["/entrypoint.sh"]
