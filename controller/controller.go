@@ -92,7 +92,6 @@ http {
     {{range $endpoint := $entry.Endpoints}}
     server {{$endpoint}}:{{$entry.ServicePort}};
     {{end}}
-    sticky;
   }
 
   server {
