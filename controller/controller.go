@@ -70,25 +70,6 @@ http {
   # to avoid ssl stripping https://en.wikipedia.org/wiki/SSL_stripping#SSL_stripping
   add_header Strict-Transport-Security "max-age=31536000;";
 
-  # nginx-stats endpoint for sysdig
-  server {
-    listen 127.0.0.1:80;
-    location /nginx_status {
-      # Don't log these, sysdig polls constantly
-      access_log off;
-      stub_status;
-    }
-  }
-
-  server {
-    listen 127.0.0.1:443 ssl;
-    location /nginx_status {
-      # Don't log these, sysdig polls constantly
-      access_log off;
-      stub_status;
-    }
-  }
-
   # HTTP redirect
   server {
     listen 80 default_server;
