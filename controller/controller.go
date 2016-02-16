@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -202,10 +203,12 @@ func main() {
 		knownServices = services
 
 		// Build a map from service names to list of pod endpoints
+		serviceMap := make(map[string]api.Service)
 		endpointMap := make(map[string][]string)
 		for serviceIdx := 0; serviceIdx < len(services.Items); serviceIdx++ {
 			service := services.Items[serviceIdx]
 			endpointMap[service.Name] = make([]string, 0)
+			serviceMap[service.Name] = service
 			pods, err := podClient.List(labels.SelectorFromSet(service.Spec.Selector), fields.Everything())
 			if err != nil {
 				log.Printf("Error retrieving services: %v", err)
@@ -227,11 +230,23 @@ func main() {
 				rule := ingress.Spec.Rules[ruleIdx]
 				for pathIdx := 0; pathIdx < len(rule.HTTP.Paths); pathIdx++ {
 					path := rule.HTTP.Paths[pathIdx]
+					var port string
+					for _, portBlock := range serviceMap[path.Backend.ServiceName].Spec.Ports {
+						portStr := fmt.Sprintf("%d", portBlock.Port)
+						targetPortStr := fmt.Sprintf("%d", portBlock.TargetPort.IntVal)
+						if portStr == path.Backend.ServicePort.String() {
+							port = targetPortStr
+						}
+					}
+					if port == "" {
+						log.Printf("Error looking up target port for service %s, skipping. Perhaps the service doesn't exist?", path.Backend.ServiceName)
+						continue
+					}
 					data = append(data, TmplData{
 						Host:        rule.Host,
 						Path:        path.Path,
 						ServiceName: path.Backend.ServiceName,
-						ServicePort: path.Backend.ServicePort.String(),
+						ServicePort: port,
 						Endpoints:   endpointMap[path.Backend.ServiceName],
 					})
 				}
