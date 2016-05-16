@@ -98,33 +98,37 @@ http {
 
 {{range $entry := .}}
 
-  {{if $entry.Endpoints}}
-  upstream {{$entry.ServiceName}} {
-    {{range $endpoint := $entry.Endpoints}}
-    server {{$endpoint}}:{{$entry.ServicePort}};
+  {{if $entry.Paths}}
+    {{range $path := $entry.Paths}}
+      upstream {{$path.ServiceName}} {
+        {{range $endpoint := $path.Endpoints}}
+          server {{$endpoint}}:{{$path.ServicePort}};
+        {{end}}
+      }
     {{end}}
-  }
 
-  server {
-    listen 443 ssl;
-    server_name {{$entry.Host}};
-    location {{$entry.Path}} {
-      proxy_set_header X-Forwarded-For $remote_addr; # preserve client IP
-      proxy_set_header Host $http_host;
-      proxy_set_header X-NginX-Proxy true;
+    server {
+      listen 443 ssl;
+      server_name {{$entry.Host}};
+      {{range $path := $entry.Paths}}
+        location {{$path.Path}} {
+          proxy_set_header X-Forwarded-For $remote_addr; # preserve client IP
+          proxy_set_header Host $http_host;
+          proxy_set_header X-NginX-Proxy true;
 
 
-      add_header P3P 'CP="Please contact support."';
+          add_header P3P 'CP="Please contact support."';
 
-      proxy_redirect off;
+          proxy_redirect off;
 
-      # Handle Web Socket connections
-      proxy_http_version 1.1;
-      proxy_set_header Upgrade $http_upgrade;
-      proxy_set_header Connection "upgrade";
-      proxy_pass http://{{$entry.ServiceName}};
+          # Handle Web Socket connections
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection "upgrade";
+          proxy_pass http://{{$path.ServiceName}};
+        }
+      {{end}}
     }
-  }
   {{end}}
 {{end}}
 }`
@@ -137,9 +141,14 @@ func shellOut(cmd string) {
 	}
 }
 
+type TmplPath struct {
+	Path, ServiceName, ServicePort string
+	Endpoints                      []string
+}
+
 type TmplData struct {
-	Path, Host, ServiceName, ServicePort string
-	Endpoints                            []string
+	Host  string
+	Paths []TmplPath
 }
 
 func main() {
@@ -228,6 +237,10 @@ func main() {
 			ingress := ingresses.Items[ingressIdx]
 			for ruleIdx := 0; ruleIdx < len(ingress.Spec.Rules); ruleIdx++ {
 				rule := ingress.Spec.Rules[ruleIdx]
+				ruleTmplData := TmplData{
+					Host:  rule.Host,
+					Paths: make([]TmplPath, 0),
+				}
 				for pathIdx := 0; pathIdx < len(rule.HTTP.Paths); pathIdx++ {
 					path := rule.HTTP.Paths[pathIdx]
 					var port string
@@ -242,14 +255,14 @@ func main() {
 						log.Printf("Error looking up target port for service %s, skipping. Perhaps the service doesn't exist?", path.Backend.ServiceName)
 						continue
 					}
-					data = append(data, TmplData{
-						Host:        rule.Host,
+					ruleTmplData.Paths = append(ruleTmplData.Paths, TmplPath{
 						Path:        path.Path,
 						ServiceName: path.Backend.ServiceName,
 						ServicePort: port,
 						Endpoints:   endpointMap[path.Backend.ServiceName],
 					})
 				}
+				data = append(data, ruleTmplData)
 			}
 		}
 
