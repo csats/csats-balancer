@@ -98,24 +98,27 @@ http {
 
 {{range $entry := .}}
 
-  {{if $entry.Paths}}
-    {{range $path := $entry.Paths}}
+  {{range $path := $entry.Paths}}
+    {{if $path.Endpoints}}
       upstream {{$path.ServiceName}} {
         {{range $endpoint := $path.Endpoints}}
           server {{$endpoint}}:{{$path.ServicePort}};
         {{end}}
       }
     {{end}}
+  {{end}}
 
-    server {
-      listen 443 ssl;
-      server_name {{$entry.Host}};
-      {{range $path := $entry.Paths}}
+  server {
+    listen 443 ssl;
+    server_name {{$entry.Host}};
+    {{range $path := $entry.Paths}}
+      {{if $path.Endpoints}}
         location {{$path.Path}} {
+          proxy_set_header Host $host;
           proxy_set_header X-Forwarded-For $remote_addr; # preserve client IP
           proxy_set_header Host $http_host;
+          proxy_set_header X-Forwarded-Proto $scheme;
           proxy_set_header X-NginX-Proxy true;
-
 
           add_header P3P 'CP="Please contact support."';
 
@@ -125,11 +128,11 @@ http {
           proxy_http_version 1.1;
           proxy_set_header Upgrade $http_upgrade;
           proxy_set_header Connection "upgrade";
-          proxy_pass http://{{$path.ServiceName}};
+          proxy_pass http://{{$path.ServiceName}}/;
         }
       {{end}}
-    }
-  {{end}}
+    {{end}}
+  }
 {{end}}
 }`
 )
